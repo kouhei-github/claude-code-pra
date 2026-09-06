@@ -1,0 +1,697 @@
+<title>Cowork ユースケースを Claude Code で</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Old+Mincho:wght@600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+:root{
+  --paper:#EFF0EC;
+  --surface:#FBFBF9;
+  --surface-2:#E7E9E3;
+  --ink:#1A1D1A;
+  --ink-soft:#5C635D;
+  --ink-faint:#868D86;
+  --rule:#D3D7D0;
+  --rule-soft:#E2E5DF;
+  --shu:#C0392A;
+  --shu-tint:rgba(192,57,42,.09);
+  --pass:#2C6E51;
+  --shadow:0 1px 2px rgba(26,29,26,.05);
+
+  --mincho:"Zen Old Mincho","Hiragino Mincho ProN","Yu Mincho",YuMincho,serif;
+  --gothic:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#141613;
+    --surface:#1C1F1B;
+    --surface-2:#23271F;
+    --ink:#E7E9E3;
+    --ink-soft:#9AA29A;
+    --ink-faint:#767E76;
+    --rule:#2E332C;
+    --rule-soft:#242821;
+    --shu:#E8705B;
+    --shu-tint:rgba(232,112,91,.13);
+    --pass:#63B189;
+    --shadow:0 1px 2px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#141613;
+  --surface:#1C1F1B;
+  --surface-2:#23271F;
+  --ink:#E7E9E3;
+  --ink-soft:#9AA29A;
+  --ink-faint:#767E76;
+  --rule:#2E332C;
+  --rule-soft:#242821;
+  --shu:#E8705B;
+  --shu-tint:rgba(232,112,91,.13);
+  --pass:#63B189;
+  --shadow:0 1px 2px rgba(0,0,0,.35);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--gothic);
+  font-size:15px;
+  line-height:1.85;
+  -webkit-font-smoothing:antialiased;
+  text-size-adjust:100%;
+}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--shu);outline-offset:3px;border-radius:2px}
+
+.wrap{max-width:1040px;margin:0 auto;padding:0 28px}
+.measure{max-width:64ch}
+
+/* ---------- header ---------- */
+.masthead{border-bottom:1px solid var(--rule);background:var(--surface)}
+.masthead-in{
+  max-width:1040px;margin:0 auto;padding:14px 28px;
+  display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft)}
+.seal{
+  width:22px;height:22px;flex:none;border:1.5px solid var(--shu);border-radius:2px;
+  display:grid;place-items:center;color:var(--shu);
+  font-family:var(--mono);font-weight:700;font-size:10px;line-height:1;
+}
+.masthead-meta{font-family:var(--mono);font-size:11.5px;color:var(--ink-faint);letter-spacing:.04em}
+
+/* ---------- hero ---------- */
+.hero{padding:60px 0 44px;border-bottom:1px solid var(--rule)}
+.eyebrow{
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--shu);margin:0 0 18px;display:flex;align-items:center;gap:10px;
+}
+.eyebrow::after{content:"";height:1px;flex:1;background:var(--rule);max-width:120px}
+h1{
+  font-family:var(--mincho);font-weight:700;font-size:clamp(30px,5.4vw,50px);
+  line-height:1.28;letter-spacing:.01em;margin:0 0 22px;text-wrap:balance;
+}
+h1 .accent{color:var(--shu)}
+.lede{font-size:16px;line-height:1.95;color:var(--ink-soft);margin:0 0 30px}
+.lede strong{color:var(--ink);font-weight:500}
+
+.facts{
+  display:flex;flex-wrap:wrap;gap:0;border-top:1px solid var(--rule);
+  margin-top:34px;
+}
+.fact{
+  flex:1 1 150px;padding:16px 20px 14px 0;border-right:1px solid var(--rule-soft);
+}
+.fact:last-child{border-right:0}
+.fact dt{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 4px}
+.fact dd{margin:0;font-family:var(--mono);font-size:22px;font-weight:500;font-variant-numeric:tabular-nums;line-height:1.2}
+.fact dd span{font-size:12px;color:var(--ink-soft);font-weight:400;margin-left:3px}
+
+/* ---------- sections ---------- */
+section{padding:52px 0;border-bottom:1px solid var(--rule)}
+section:last-of-type{border-bottom:0}
+h2{
+  font-family:var(--mincho);font-weight:600;font-size:clamp(21px,3vw,27px);
+  line-height:1.4;margin:0 0 6px;letter-spacing:.01em;
+}
+.sub{font-size:13.5px;color:var(--ink-soft);margin:0 0 30px;max-width:60ch}
+h3{font-family:var(--gothic);font-weight:700;font-size:15px;margin:0 0 10px;letter-spacing:.01em}
+
+/* ---------- comparison table ---------- */
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;min-width:620px;font-size:13.5px}
+caption{caption-side:bottom;text-align:left;font-size:12px;color:var(--ink-faint);padding-top:12px;font-family:var(--mono)}
+th,td{text-align:left;padding:11px 16px 11px 0;border-bottom:1px solid var(--rule-soft);vertical-align:top}
+thead th{
+  font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-faint);font-weight:500;border-bottom:1px solid var(--rule);padding-bottom:9px;
+}
+tbody tr:last-child td{border-bottom:0}
+td.cc{font-family:var(--mono);font-size:12.5px;color:var(--ink)}
+td.note{color:var(--ink-soft);font-size:12.5px}
+tr.only-cc td:first-child{color:var(--ink-faint)}
+tr.only-cc td.cc{color:var(--shu)}
+
+/* ---------- curriculum ---------- */
+.phase{margin-top:34px}
+.phase:first-of-type{margin-top:0}
+.phase-head{
+  display:flex;align-items:baseline;gap:12px;padding-bottom:10px;
+  border-bottom:1.5px solid var(--ink);margin-bottom:0;
+}
+.phase-num{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--shu);font-weight:700}
+.phase-title{font-family:var(--gothic);font-weight:700;font-size:15px}
+.phase-note{font-size:12.5px;color:var(--ink-soft);margin-left:auto;text-align:right}
+
+.unit{
+  display:grid;
+  grid-template-columns:52px minmax(0,1fr) 66px;
+  gap:0 20px;
+  padding:20px 0;
+  border-bottom:1px solid var(--rule-soft);
+  align-items:start;
+}
+.unit:last-child{border-bottom:0}
+.unit-seal{
+  width:38px;height:38px;border:1.5px solid var(--shu);border-radius:3px;
+  display:grid;place-items:center;color:var(--shu);
+  font-family:var(--mono);font-weight:700;font-size:15px;line-height:1;
+  background:var(--shu-tint);
+}
+.unit-body h3{margin:2px 0 8px;font-size:16.5px;line-height:1.45}
+.unit-map{
+  font-size:12.5px;color:var(--ink-soft);margin:0 0 10px;
+  display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;
+}
+.unit-map b{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-faint);font-weight:500;flex:none;
+}
+.unit-desc{margin:0 0 12px;font-size:13.5px;color:var(--ink);line-height:1.8}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0}
+.chip{
+  font-family:var(--mono);font-size:11px;line-height:1.6;
+  padding:2px 8px;border:1px solid var(--rule);border-radius:2px;
+  color:var(--ink-soft);background:var(--surface);white-space:nowrap;
+}
+.unit-side{text-align:right;padding-top:4px}
+.dur{font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums;color:var(--ink);white-space:nowrap}
+.dur span{font-size:11px;color:var(--ink-faint)}
+.unit-foot{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:12px;
+  padding-top:10px;border-top:1px dashed var(--rule-soft);
+}
+.path{font-family:var(--mono);font-size:11px;color:var(--ink-faint);overflow-wrap:anywhere}
+.done{
+  display:inline-flex;align-items:center;gap:6px;cursor:pointer;
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--ink-faint);
+  user-select:none;margin-left:auto;flex:none;
+}
+.done input{
+  appearance:none;-webkit-appearance:none;margin:0;
+  width:13px;height:13px;border:1.5px solid var(--rule);border-radius:2px;
+  background:var(--surface);cursor:pointer;flex:none;
+}
+.done input:checked{background:var(--shu);border-color:var(--shu)}
+.done input:checked+span{color:var(--shu)}
+.unit.is-done .unit-seal{background:var(--shu);color:var(--surface);border-color:var(--shu)}
+
+/* ---------- data showcase ---------- */
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:28px}
+.slab{
+  background:var(--surface);border:1px solid var(--rule);border-radius:3px;
+  padding:20px 22px;box-shadow:var(--shadow);
+}
+.slab h3{margin-bottom:12px}
+.flaws{margin:0;padding:0;list-style:none;font-size:13px}
+.flaws li{
+  padding:7px 0 7px 0;border-bottom:1px dashed var(--rule-soft);
+  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:baseline;
+}
+.flaws li:last-child{border-bottom:0}
+.flaws code{font-family:var(--mono);font-size:11.5px;color:var(--shu);background:var(--shu-tint);padding:1px 5px;border-radius:2px}
+.flaws .n{font-family:var(--mono);font-size:11px;color:var(--ink-faint);font-variant-numeric:tabular-nums;white-space:nowrap}
+
+pre{
+  margin:0;background:var(--surface);border:1px solid var(--rule);border-radius:3px;
+  padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.75;
+}
+pre .c{color:var(--ink-faint)}
+pre .k{color:var(--shu)}
+
+/* ---------- principles ---------- */
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:0;border-top:1px solid var(--rule)}
+.rule{padding:22px 24px 22px 0;border-right:1px solid var(--rule-soft)}
+.rule:last-child{border-right:0}
+.rule .mark{
+  font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--shu);
+  display:block;margin-bottom:8px;
+}
+.rule h3{margin-bottom:7px}
+.rule p{margin:0;font-size:13px;color:var(--ink-soft);line-height:1.8}
+
+/* ---------- start ---------- */
+.steps{counter-reset:s;list-style:none;margin:0;padding:0}
+.steps li{
+  counter-increment:s;position:relative;padding:0 0 22px 40px;
+  border-left:1px solid var(--rule);margin-left:13px;
+}
+.steps li:last-child{border-left-color:transparent;padding-bottom:0}
+.steps li::before{
+  content:counter(s);position:absolute;left:-13px;top:0;
+  width:26px;height:26px;border-radius:50%;background:var(--paper);
+  border:1px solid var(--rule);display:grid;place-items:center;
+  font-family:var(--mono);font-size:11px;color:var(--ink-soft);
+}
+.steps h3{margin-bottom:6px}
+.steps p{margin:0 0 10px;font-size:13.5px;color:var(--ink-soft)}
+
+footer{padding:36px 0 56px;font-size:12.5px;color:var(--ink-faint)}
+footer p{margin:0 0 8px;max-width:70ch}
+footer code{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft)}
+
+@media (max-width:720px){
+  .wrap{padding:0 20px}
+  .masthead-in{padding:12px 20px}
+  .unit{grid-template-columns:44px minmax(0,1fr) 58px;gap:0 12px}
+  .unit-seal{width:34px;height:34px;font-size:13px}
+  .rule{border-right:0;border-bottom:1px solid var(--rule-soft);padding-right:0}
+  .rule:last-child{border-bottom:0}
+  .fact{flex:1 1 100%;border-right:0;border-bottom:1px solid var(--rule-soft);padding-right:0}
+  .fact:last-child{border-bottom:0}
+  .phase-note{margin-left:0;flex:1 1 100%;text-align:left}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<header class="masthead">
+  <div class="masthead-in">
+    <div class="brand"><span class="seal" aria-hidden="true">検</span><span>Claude Code 実践教材</span></div>
+    <div class="masthead-meta">14 units · 約10.3h · 日本語</div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="hero">
+    <p class="eyebrow">Cowork のユースケースを、リポジトリの上でやる</p>
+    <h1>AIの成果物に、<br><span class="accent">赤を入れられる</span>ようになる14単元</h1>
+    <div class="measure">
+      <p class="lede">
+        Claude Academy の <em>Introduction to Claude Cowork</em> が扱う業務ユースケース——
+        スプレッドシートの片付け、文書の統合、文章の量産、繰り返し作業の自動化——を、
+        <strong>Claude Code でそのまま実践できる形</strong>に置き換えた教材です。
+      </p>
+      <p class="lede">
+        Cowork がデスクトップのファイルとアプリを相手にするのに対して、Claude Code が相手にするのは
+        <strong>リポジトリとターミナル</strong>。やることは同じでも、出力先がパスで決まり、
+        <code style="font-family:var(--mono);font-size:12.5px">git diff</code> で何をされたか全部見え、
+        検収を人ではなくスクリプトに書ける。この違いが、実務で任せられる範囲を決めます。
+      </p>
+      <p class="lede">
+        教材データは意図的に壊してあります。表記ゆれ、和暦、全角数字、重複行、
+        領収書とカード明細の二重計上、未回答のセキュリティ質問票。
+        <strong>きれいなサンプルからは、赤の入れ方は学べない</strong>からです。
+      </p>
+      <p class="lede">
+        最後の2単元は、リポジトリの外——ブラウザに出ます。ログイン付きの業務システムを
+        1本同梱してあり、<strong>わざと自動化しにくく</strong>作ってあります。
+        スケルトン行、デバウンス、ページ送り、非同期ジョブ、セッション失効。
+        現場で RPA が転ぶ場所を16個そろえました。
+      </p>
+    </div>
+
+    <dl class="facts">
+      <div class="fact"><dt>単元</dt><dd>14<span>units</span></dd></div>
+      <div class="fact"><dt>所要</dt><dd>10.3<span>時間</span></dd></div>
+      <div class="fact"><dt>教材ファイル</dt><dd>128<span>files</span></dd></div>
+      <div class="fact"><dt>練習用アプリ</dt><dd>1<span>本（RPA用）</span></dd></div>
+    </dl>
+  </div>
+
+  <section id="map">
+    <h2>Cowork でやっていたことは、Claude Code のどこに来るか</h2>
+    <p class="sub">
+      概念は1対1でほぼ移せます。移せないのは最後の2行——そこが Claude Code を選ぶ理由でもあります。
+    </p>
+    <div class="scroll">
+      <table>
+        <caption>※ 下2行は Cowork に対応するものがない、Claude Code 側の機能</caption>
+        <thead>
+          <tr><th style="width:30%">Cowork</th><th style="width:34%">Claude Code</th><th>補足</th></tr>
+        </thead>
+        <tbody id="maprows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="curriculum">
+    <h2>カリキュラム</h2>
+    <p class="sub">
+      3つの段階に分かれています。<strong>01 → 02 → 09</strong> を先に通すと、以降の単元でプロンプトが短くなります。
+      チェックを付けると、この端末に進捗が残ります。
+    </p>
+    <div id="units"></div>
+  </section>
+
+  <section id="materials">
+    <h2>教材データについて</h2>
+    <p class="sub">
+      架空のSaaS企業「株式会社アルタイル」（製品 Altair CRM、社員240名）が舞台。
+      14単元すべてが同じ会社・同じ顧客・同じ数字でつながっています。
+    </p>
+    <div class="grid2">
+      <div class="slab">
+        <h3>単元04 の売上Excelに仕込んである壊れ方</h3>
+        <ul class="flaws" id="flaws"></ul>
+      </div>
+      <div>
+        <h3 style="margin-bottom:12px">再生成できる</h3>
+        <p style="margin:0 0 14px;font-size:13.5px;color:var(--ink-soft);line-height:1.8">
+          データ生成スクリプトは乱数シードを固定してあります。演習で <code style="font-family:var(--mono);font-size:12px">data/</code>
+          を壊しても、同じデータがそのまま戻ります。
+        </p>
+<pre><span class="c"># 初回、または data/ を壊したとき</span>
+pip install openpyxl python-docx python-pptx
+python3 tools/<span class="k">generate_all.py</span>
+
+<span class="c"># → units/ 配下に 146 ファイル</span></pre>
+        <p style="margin:14px 0 0;font-size:13px;color:var(--ink-soft);line-height:1.8">
+          単元04・08・12・14 には検証スクリプトを書かせる課題が含まれます。
+          30通の Word 文書を目視で確認するのは現実的ではないので、
+          <strong style="color:var(--ink);font-weight:500">検収そのものをコードにする</strong>のが答えです。
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section id="rpa-lab">
+    <h2>単元13・14 には、練習台のシステムが付いています</h2>
+    <p class="sub">
+      <code style="font-family:var(--mono);font-size:12.5px">apps/rpa-lab/</code> —
+      架空企業の受注管理システム。ログイン、4ステップのウィザード、承認フロー、
+      非同期のレポート生成。<strong>わざと自動化しにくく</strong>作ってあります。
+      依存パッケージはゼロで、Vercel にもそのまま乗ります。
+    </p>
+    <div class="grid2">
+      <div class="slab">
+        <h3>仕込んである16個の「困りごと」から</h3>
+        <ul class="flaws" id="traps"></ul>
+      </div>
+      <div>
+        <h3 style="margin-bottom:12px">起動して、Claude Code をつなぐ</h3>
+<pre><span class="c"># 練習台を立てる（Node 20 以上、npm install 不要）</span>
+cd apps/rpa-lab &amp;&amp; npm run dev
+<span class="c"># → http://localhost:4321</span>
+
+<span class="c"># ルートA: Chrome 拡張（対話向き・既存ログインを共有）</span>
+claude <span class="k">--chrome</span>
+
+<span class="c"># ルートB: Playwright（無人実行・定期実行向き）</span>
+claude mcp add playwright -- npx -y @playwright/mcp@latest</pre>
+        <p style="margin:16px 0 0;font-size:13px;color:var(--ink-soft);line-height:1.8">
+          Chrome 拡張は<strong style="color:var(--ink);font-weight:500">あなたのブラウザのログイン状態を共有</strong>します。
+          つまり「自動ログイン」の正体は、ログインしないこと。そして拡張は
+          ログイン画面や CAPTCHA に出会うと手を止めて人に渡します——それが設計です。
+          無人で回すなら Playwright に切り替え、セッションを保存して再利用します。
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section id="principles">
+    <h2>全単元に通底する4つのルール</h2>
+    <p class="sub">Cowork でも Claude Code でも変わらない、AIに仕事を任せるときの基本です。</p>
+    <div class="rules" id="rules"></div>
+    <p style="margin:22px 0 0;font-size:13px;color:var(--ink-soft);line-height:1.85;max-width:64ch;
+              border-left:2px solid var(--shu);padding-left:14px">
+      ただし単元13・14 のブラウザだけは、RULE 02 が使えません。<strong style="color:var(--ink);font-weight:500">押したら戻せない</strong>からです。
+      退避の代わりに、件数を先に宣言する・2回動いても二重にならないようにする・
+      実行ログを残す。この3つで代替します。
+    </p>
+  </section>
+
+  <section id="start">
+    <h2>はじめかた</h2>
+    <p class="sub">各単元の README に、そのままコピーして使えるプロンプトが載っています。最初は写経で構いません。</p>
+    <ol class="steps">
+      <li>
+        <h3>リポジトリを開いて、教材データを作る</h3>
+        <p>教材の実データはリポジトリに入っていますが、壊したときはここで戻せます。</p>
+<pre>git clone &lt;このリポジトリ&gt;
+cd claude-code-pra
+pip install openpyxl python-docx python-pptx
+python3 tools/generate_all.py</pre>
+      </li>
+      <li>
+        <h3>権限モードを「確認あり」にして起動する</h3>
+        <p><code style="font-family:var(--mono);font-size:12px">Shift+Tab</code> でモードを切り替えられます。最初は必ず確認ありで、何をされているかを見てください。</p>
+<pre>claude</pre>
+      </li>
+      <li>
+        <h3>単元01 の README を開く</h3>
+        <p>3人分の日報と数値CSVから週報を1枚作ります。ここで「依頼 → 計画の確認 → 実行 → 自分で検収」を1周します。</p>
+<pre><span class="c"># Claude Code に投げる</span>
+週報を作ってください。
+@units/01-setup-first-loop/data/ を読んで、
+書式は data/週報の書式.md に従う。
+出力は units/01-setup-first-loop/output/週報_2026-W36.md</pre>
+      </li>
+      <li>
+        <h3>単元09 まで来たら、CLAUDE.md を書く</h3>
+        <p>毎回プロンプトに書いていた制約を常設のコンテキストに移します。ここから先、依頼が一気に短くなります。</p>
+      </li>
+    </ol>
+  </section>
+
+  <footer>
+    <p>
+      教材内の会社名・人名・数値はすべて架空のものです。Claude Academy の公式教材ではなく、
+      そのユースケースを Claude Code 向けに再構成した非公式教材です。
+    </p>
+    <p>
+      単元の実体は <code>units/&lt;単元&gt;/</code> にあります。
+      <code>README.md</code>（指示書）／<code>data/</code>（入力・読み取り専用）／<code>output/</code>（成果物）／<code>solution/</code>（模範解答・一部）。
+      単元13・14 の練習台は <code>apps/rpa-lab/</code>。ログイン情報はダミーで、本番で使えるものは含まれていません。
+    </p>
+  </footer>
+</div>
+
+<script>
+(function(){
+  var MAP = [
+    ["作業フォルダを選ぶ","cd &lt;dir&gt; して claude を起動","カレントディレクトリがそのまま作業範囲になる"],
+    ["権限モード（確認あり／自動）","Shift+Tab ／ /permissions","通常・Accept Edits・Plan mode の3段階"],
+    ["ファイルをドラッグして渡す","@path/to/file","ディレクトリごと渡すこともできる"],
+    ["グローバル指示","~/.claude/CLAUDE.md","自分の全プロジェクトに効く"],
+    ["プロジェクト","&lt;repo&gt;/CLAUDE.md","コミットするとチーム全員に効く"],
+    ["Skill を作る",".claude/skills/&lt;name&gt;/SKILL.md","description が「いつ発火するか」を決める"],
+    ["プラグインを入れる","/plugin ／ .claude/settings.json",""],
+    ["スケジュールタスク","cron ／ GitHub Actions から claude -p","非対話なので確認を求めない書き方が要る"],
+    ["Word・Excel・PowerPoint・PDF 連携","xlsx / docx / pptx / pdf スキル",""],
+    ["Chrome でログイン済みのアプリを操作","claude --chrome ＋ Claude in Chrome 拡張","ブラウザのログイン状態を共有する。ログイン画面では人に渡して止まる"],
+    ["ブラウザ作業を無人で回す","Playwright MCP ／ Playwright スクリプト","storageState でセッションを再利用。定期実行はこちら"],
+    ["会話をリセット","/clear","同じ依頼を再実行して再現性を測る"]
+  ];
+  var MAP_ONLY = [
+    ["—","git status ／ git diff","何を触られたかが全部見える。演習の検収はここから始まる"],
+    ["—","検証スクリプトを書かせる","30通の文書を目視しない。合否判定をコードにする"]
+  ];
+
+  var PHASES = [
+    {n:"PHASE 1", t:"基礎 — 依頼の型をつくる", note:"ここを飛ばすと、以降で同じ失敗を繰り返します"},
+    {n:"PHASE 2", t:"実務 — 手で1日かかる仕事を持ち込む", note:"自分の業務に近いものから選んで構いません"},
+    {n:"PHASE 3", t:"仕組み化 — 一度きりを、毎回に変える", note:"ここまで来ると、人は例外だけを見ればよくなります"},
+    {n:"PHASE 4", t:"リポジトリの外へ — ブラウザを操作する", note:"押したら戻せない。ここだけルールが変わります"}
+  ];
+
+  var UNITS = [
+    {p:0,n:"01",t:"セットアップと最初のタスクループ",
+     cw:"作業フォルダ・権限モード・最初の依頼",
+     d:"3人分の日報と数値CSVから週報を1枚作る。「依頼 → 計画の確認 → 実行 → 自分で検収」を1周し、Plan mode で走らせない練習をする。",
+     o:["週報.md"],m:25,path:"units/01-setup-first-loop/"},
+    {p:0,n:"02",t:"プロンプト設計",
+     cw:"task / context / format / constraints",
+     d:"現場で実際に投げられた雑な依頼10件を4要素に分解して書き直し、0〜3点で採点する。/clear して再実行し、同じ成果物が出るかで品質を測る。",
+     o:["書き直し版.md","評価シート.xlsx"],m:40,path:"units/02-prompt-design/"},
+    {p:0,n:"03",t:"ファイル整理と一括リネーム",
+     cw:"階層設計・自動仕分け・一括リネーム",
+     d:"42ファイルの受信箱を命名規則に沿って整理する。「最終_FIX」の版数、内容が同一の重複、中身にしか日付がないファイル。削除せず退避する。",
+     o:["整理計画.md","整理ログ.md"],m:35,path:"units/03-file-organization/"},
+
+    {p:1,n:"04",t:"スプレッドシートのクリーンアップ",
+     cw:"汚れた表を集計できる状態にする",
+     d:"124行の売上Excel。日付5種混在・和暦・全角数字・半角カナ・重複6行・途中に紛れた小計行。直せない行を捨てさせず、理由付きで除外シートに残す。",
+     o:["clean.xlsx（4シート）","verify.py"],m:45,path:"units/04-spreadsheet-cleanup/"},
+    {p:1,n:"05",t:"非構造データを表に変える",
+     cw:"領収書・議事録 → 集計できる表",
+     d:"領収書10枚・手書きメモ・カード明細から経費精算書を作る。二重計上、他人の立替、宿泊費の上限超過、会食の人数按分を規程に照らして判定する。",
+     o:["突き合わせ表.md","経費精算.xlsx"],m:45,path:"units/05-unstructured-to-table/"},
+    {p:1,n:"06",t:"複数文書の統合",
+     cw:"ドキュメント統合・意思決定資料",
+     d:"RFPとベンダー3社の提案（docx／md）を突き合わせる。見積の前提が揃っていないこと、提案書のどこにも書かれていない論点を見つけて経営会議に出す。",
+     o:["比較表.xlsx","意思決定サマリ.md","pptx"],m:50,path:"units/06-document-synthesis/"},
+    {p:1,n:"07",t:"データ分析とレポート生成",
+     cw:"数字から傾向と示唆を出す",
+     d:"24ヶ月のSaaS KPI。解約率の悪化がいつ始まったかを特定し、応答時間の悪化と同時に起きていることを——因果と断定せずに——書く。",
+     o:["数値サマリ.xlsx","分析レポート.md","pptx"],m:50,path:"units/07-data-analysis-report/"},
+    {p:1,n:"08",t:"定型文書の量産",
+     cw:"ひな形＋一覧から宛先ごとに生成",
+     d:"30社の契約更新案内をWordで生成する。値上げ率・利用状況スコア・解約リスクで文面が分岐し、「送らない」判断も出力に含める。",
+     o:["30通の docx","送付管理表.xlsx","verify.py"],m:45,path:"units/08-bulk-document-generation/"},
+
+    {p:2,n:"09",t:"CLAUDE.md で標準コンテキスト",
+     cw:"グローバル指示・プロジェクト",
+     d:"用語・禁止表現・決裁範囲・作業ルールを常設化する。制約を書かないプロンプトで試して、効いているかを確かめる。守られなかった行は削る。",
+     o:["CLAUDE.md","settings.json"],m:40,path:"units/09-project-context/"},
+    {p:2,n:"10",t:"業務を Skill にする",
+     cw:"Skill を作る",
+     d:"過去3回の月次レポートから暗黙の仕様を逆算して SKILL.md を書く。手順書をゼロから書かない。Skill が勝手に決めてはいけない判断も書く。",
+     o:["SKILL.md","月次レポート.md"],m:50,path:"units/10-custom-skill/"},
+    {p:2,n:"11",t:"定期実行の自動化",
+     cw:"スケジュールタスク",
+     d:"週次ダイジェストを claude -p で回し、cron と GitHub Actions に載せる。人が見ていない状態で走らせる書き方と、失敗に気づく仕組みを設計する。",
+     o:["週次ダイジェスト.md","SKILL.md",".sh / workflow.yml"],m:45,path:"units/11-scheduled-automation/"},
+    {p:2,n:"12",t:"総合演習：サブエージェント並列",
+     cw:"複数成果物をチーム品質に仕上げる",
+     d:"顧客3社 × 3成果物を並列生成し、別のエージェントにレビューさせる。顧客向け資料に解約リスクを漏らさないことが、この演習の合否を分ける。",
+     o:["3社 × pptx / xlsx / md","レビュー結果.md"],m:60,path:"units/12-subagents-capstone/"},
+
+    {p:3,n:"13",t:"ブラウザ操作と自動ログイン",
+     cw:"Claude を Chrome に入れて操作させる",
+     d:"「自動ログイン」には3つの意味がある。既存セッションの共有・保存済みセッションの再利用・毎回入力。Chrome拡張は認証画面で止まって人に渡す——それが設計であることを理解する。",
+     o:["申請中一覧.csv","セレクタ設計.md"],m:45,path:"units/13-browser-login/"},
+    {p:3,n:"14",t:"業務まるごと RPA",
+     cw:"繰り返しのブラウザ作業／定期実行",
+     d:"CSV10件を画面から登録し、別アカウントで承認し、レポートを取る。3行はわざと失敗する。Timeoutではなく「顧客マスタに存在しません」と返せて合格。",
+     o:["rpa_flow.py","実行ログ.csv","run_rpa.sh"],m:60,path:"units/14-browser-rpa/"}
+  ];
+
+  var TRAPS = [
+    ["ログインしないと API が全て <code>401</code>。データだけ取りに行っても1件も返らない","認証"],
+    ["一覧はロード中に<strong>スケルトン行</strong>を描く。<code>tr</code> を待つと0件と誤判定する","待機"],
+    ["<code>&lt;select&gt;</code> は空で描画され、あとから選択肢が入る","待機"],
+    ["トーストは5秒残り積み重なる。「最初のトースト」は前の操作の結果","判定"],
+    ["レポートは3.5秒の非同期ジョブ。押した直後には取れない","ポーリング"],
+    ["セッションは30分で失効し <code>/?expired=1</code> へ飛ぶ","再ログイン"],
+    ["差戻しは理由10文字以上が必須。ウィザードは各ステップで検証","入力検証"],
+    ["<code>data-testid</code> は主要な要素にだけ付けてある","セレクタ設計"]
+  ];
+
+  var FLAWS = [
+    ["日付が <code>2026/04/01</code> <code>令和8年4月3日</code> <code>01.04.2026</code> ほか5種混在","5種"],
+    ["支店の表記ゆれ <code>東京</code> <code>東京支店</code> <code>ﾄｳｷｮｳ</code>","5表記"],
+    ["数量が文字列 <code>10個</code> ／ 全角数字 <code>１０</code>","混在"],
+    ["金額が空欄の行","約10%"],
+    ["金額 ≠ 数量 × 単価 の行（値引きかもしれない）","約8%"],
+    ["完全重複行","6行"],
+    ["表の途中に紛れ込んだ小計行（SUM数式入り）","2行"],
+    ["ヘッダーが1行目ではなく5行目","結合セル"]
+  ];
+
+  var RULES = [
+    ["RULE 01","data/ は読み取り専用","入力を書き換えると、監査時に元データが辿れなくなる。成果物は output/ にだけ書く。"],
+    ["RULE 02","ファイルを削除しない","不要なものは退避する。復元不能な操作を任せるのは、それが確実に不要だと人が確認したあと。"],
+    ["RULE 03","推測でデータを埋めない","仮定した箇所が分からなくなると、成果物全体が信用できなくなる。不明点は「要確認」として残す。"],
+    ["RULE 04","判断を Claude に決めさせない","判断材料を出させて、人が決める。値引きか入力ミスか、送るか送らないか——そこが人の仕事。"]
+  ];
+
+  function el(tag, cls, html){
+    var e = document.createElement(tag);
+    if(cls) e.className = cls;
+    if(html != null) e.innerHTML = html;
+    return e;
+  }
+
+  // 対応表
+  var tb = document.getElementById("maprows");
+  MAP.forEach(function(r){
+    var tr = el("tr");
+    tr.appendChild(el("td", null, r[0]));
+    tr.appendChild(el("td", "cc", r[1]));
+    tr.appendChild(el("td", "note", r[2]));
+    tb.appendChild(tr);
+  });
+  MAP_ONLY.forEach(function(r){
+    var tr = el("tr", "only-cc");
+    tr.appendChild(el("td", null, r[0]));
+    tr.appendChild(el("td", "cc", r[1]));
+    tr.appendChild(el("td", "note", r[2]));
+    tb.appendChild(tr);
+  });
+
+  // 進捗（この端末にだけ残る）
+  var KEY = "cc-cowork-progress-v1";
+  var progress = {};
+  try { progress = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch(e){ progress = {}; }
+  function save(){ try { localStorage.setItem(KEY, JSON.stringify(progress)); } catch(e){} }
+
+  // カリキュラム
+  var host = document.getElementById("units");
+  PHASES.forEach(function(ph, pi){
+    var sec = el("div", "phase");
+    var head = el("div", "phase-head");
+    head.appendChild(el("span", "phase-num", ph.n));
+    head.appendChild(el("span", "phase-title", ph.t));
+    head.appendChild(el("span", "phase-note", ph.note));
+    sec.appendChild(head);
+
+    UNITS.filter(function(u){ return u.p === pi; }).forEach(function(u){
+      var row = el("div", "unit");
+      if(progress[u.n]) row.classList.add("is-done");
+
+      var sealWrap = el("div");
+      sealWrap.appendChild(el("div", "unit-seal", u.n));
+      row.appendChild(sealWrap);
+
+      var body = el("div", "unit-body");
+      body.appendChild(el("h3", null, u.t));
+      body.appendChild(el("p", "unit-map",
+        '<b>Cowork のユースケース</b><span>' + u.cw + '</span>'));
+      body.appendChild(el("p", "unit-desc", u.d));
+      var chips = el("div", "chips");
+      u.o.forEach(function(o){ chips.appendChild(el("span", "chip", o)); });
+      body.appendChild(chips);
+
+      var foot = el("div", "unit-foot");
+      foot.appendChild(el("code", "path", u.path));
+      var label = el("label", "done");
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = !!progress[u.n];
+      cb.setAttribute("aria-label", "単元" + u.n + " を完了にする");
+      cb.addEventListener("change", function(){
+        progress[u.n] = cb.checked;
+        row.classList.toggle("is-done", cb.checked);
+        save();
+      });
+      label.appendChild(cb);
+      label.appendChild(el("span", null, "完了"));
+      foot.appendChild(label);
+      body.appendChild(foot);
+      row.appendChild(body);
+
+      var side = el("div", "unit-side");
+      side.appendChild(el("div", "dur", u.m + '<span>分</span>'));
+      row.appendChild(side);
+
+      sec.appendChild(row);
+    });
+    host.appendChild(sec);
+  });
+
+  // 練習台の罠
+  var tp = document.getElementById("traps");
+  if (tp) {
+    TRAPS.forEach(function(t){
+      var li = el("li");
+      li.appendChild(el("span", null, t[0]));
+      li.appendChild(el("span", "n", t[1]));
+      tp.appendChild(li);
+    });
+  }
+
+  // 壊れ方
+  var fl = document.getElementById("flaws");
+  FLAWS.forEach(function(f){
+    var li = el("li");
+    li.appendChild(el("span", null, f[0]));
+    li.appendChild(el("span", "n", f[1]));
+    fl.appendChild(li);
+  });
+
+  // 原則
+  var rl = document.getElementById("rules");
+  RULES.forEach(function(r){
+    var d = el("div", "rule");
+    d.appendChild(el("span", "mark", r[0]));
+    d.appendChild(el("h3", null, r[1]));
+    d.appendChild(el("p", null, r[2]));
+    rl.appendChild(d);
+  });
+})();
+</script>

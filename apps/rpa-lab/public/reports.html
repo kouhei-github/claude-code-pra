@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>レポート | Altair 受注管理（RPA練習用）</title>
+<link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+<main class="page">
+  <h1>月次レポート</h1>
+  <p class="crumb">ホーム / レポート</p>
+
+  <div class="panel">
+    <h2>受注明細レポート（CSV）</h2>
+    <p class="hint" style="margin:-6px 0 16px">
+      生成には数秒かかります。完了するまでダウンロードボタンは押せません。
+    </p>
+
+    <div class="toolbar">
+      <label class="field" style="min-width:200px">
+        <span>対象月<i class="req">*</i></span>
+        <select id="month" data-testid="report-month"></select>
+      </label>
+      <button class="btn" type="button" id="generate" data-testid="generate-report">レポートを生成</button>
+    </div>
+
+    <div id="progress-area" hidden data-testid="progress-area">
+      <div style="height:6px;background:var(--line-soft);border-radius:3px;overflow:hidden">
+        <div id="bar" style="height:100%;width:0;background:var(--brand);transition:width .3s"></div>
+      </div>
+      <p style="margin:8px 0 0;font-size:13px;color:var(--muted)">
+        状態: <b data-testid="report-state">—</b> / 進捗 <b data-testid="report-progress">0</b>%
+      </p>
+    </div>
+
+    <div id="done-area" hidden data-testid="download-area" style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line-soft)">
+      <a class="btn" id="download" data-testid="download-report" download>CSV をダウンロード</a>
+      <p class="hint" style="margin-top:8px">
+        リンクは今回生成したジョブのものです。再生成すると新しい URL になります。
+      </p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>生成履歴（この画面を開いている間だけ）</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>対象月</th><th>ジョブID</th><th>状態</th><th>開始時刻</th></tr></thead>
+        <tbody id="history" data-testid="report-history">
+          <tr><td colspan="4" class="empty">まだ生成していません</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+import { boot, api, withBusy, toast, $ } from '/assets/app.js';
+
+await boot('/reports');
+
+const months = [];
+for (let m = 4; m <= 9; m++) months.push(`2026-${String(m).padStart(2, '0')}`);
+$('#month').innerHTML = months.map((m) => `<option value="${m}">${m.replace('-', '年')}月</option>`).join('');
+
+const history = [];
+function renderHistory() {
+  $('#history').innerHTML = history.length
+    ? history.map((h) => `<tr><td class="id">${h.month}</td><td class="id">${h.jobId}</td><td>${h.state}</td><td class="id">${h.at}</td></tr>`).join('')
+    : '<tr><td colspan="4" class="empty">まだ生成していません</td></tr>';
+}
+
+$('#generate').addEventListener('click', (e) =>
+  withBusy(e.currentTarget, '生成中…', async () => {
+    const month = $('#month').value;
+    $('#done-area').hidden = true;
+    $('#progress-area').hidden = false;
+    $('[data-testid=report-state]').textContent = 'running';
+    $('[data-testid=report-progress]').textContent = '0';
+    $('#bar').style.width = '0%';
+
+    let jobId;
+    try {
+      ({ jobId } = await api('/api/reports', { method: 'POST', body: { month } }));
+    } catch (err) {
+      toast(err.message, 'error');
+      $('#progress-area').hidden = true;
+      return;
+    }
+
+    const entry = { month, jobId, state: 'running', at: new Date().toTimeString().slice(0, 8) };
+    history.unshift(entry);
+    renderHistory();
+
+    // 完了するまでポーリングする。1回押しただけでは CSV は取れない。
+    for (let i = 0; i < 60; i++) {
+      const status = await api(`/api/reports?job=${jobId}`);
+      $('[data-testid=report-state]').textContent = status.state;
+      $('[data-testid=report-progress]').textContent = String(status.progress);
+      $('#bar').style.width = status.progress + '%';
+      if (status.state === 'done') {
+        entry.state = 'done';
+        renderHistory();
+        $('#download').href = status.downloadUrl;
+        $('#download').setAttribute('download', `受注明細_${month}.csv`);
+        $('#done-area').hidden = false;
+        toast(`${month} のレポートが完成しました`, 'ok');
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    toast('レポート生成がタイムアウトしました', 'error');
+  })
+);
+
+renderHistory();
+</script>
+</body>
+</html>

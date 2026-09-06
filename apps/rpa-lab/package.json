@@ -1,0 +1,12 @@
+{
+  "name": "altair-rpa-lab",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "RPA練習用のダミー業務システム（ログイン / 受注登録 / 承認 / 非同期レポート）",
+  "scripts": {
+    "dev": "node server.mjs",
+    "start": "node server.mjs"
+  },
+  "engines": { "node": ">=20" }
+}

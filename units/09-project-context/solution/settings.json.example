@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "deny": [
+      "Write(units/*/data/**)",
+      "Edit(units/*/data/**)",
+      "Bash(rm -rf:*)",
+      "Bash(git push --force:*)"
+    ],
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(python3:*)"
+    ]
+  }
+}

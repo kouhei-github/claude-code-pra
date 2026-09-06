@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>受注登録 | Altair 受注管理（RPA練習用）</title>
+<link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+<main class="page">
+  <h1>受注登録</h1>
+  <p class="crumb">ホーム / 受注一覧 / 受注登録</p>
+
+  <div class="steps" data-testid="wizard-steps">
+    <div class="step active" data-step="1"><span class="n">1</span>顧客</div>
+    <div class="step" data-step="2"><span class="n">2</span>明細</div>
+    <div class="step" data-step="3"><span class="n">3</span>納期・備考</div>
+    <div class="step" data-step="4"><span class="n">4</span>確認</div>
+  </div>
+
+  <div class="panel">
+    <!-- Step 1 -->
+    <section data-panel="1">
+      <h2>顧客を選択</h2>
+      <label class="field">
+        <span>顧客名<i class="req">*</i></span>
+        <select id="customer" data-testid="customer"><option value="">選択してください</option></select>
+        <span class="err" id="err-customer" hidden></span>
+      </label>
+      <label class="field" style="max-width:320px">
+        <span>営業担当</span>
+        <input type="text" id="rep" data-testid="rep" placeholder="未入力ならログインユーザー">
+      </label>
+    </section>
+
+    <!-- Step 2 -->
+    <section data-panel="2" hidden>
+      <div class="panel-head">
+        <h2>明細</h2>
+        <span class="spacer"></span>
+        <button class="btn secondary sm" type="button" id="add-line" data-testid="add-line">明細を追加</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>商品コード</th><th>商品名</th><th style="text-align:right">数量</th><th style="text-align:right">単価</th><th style="text-align:right">金額</th><th></th></tr></thead>
+          <tbody id="lines" data-testid="line-rows">
+            <tr><td colspan="6" class="empty" data-testid="no-lines">明細がありません。「明細を追加」から登録してください。</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="err" id="err-lines" hidden></p>
+      <p style="text-align:right;margin:14px 0 0;font-size:15px">
+        合計 <b data-testid="line-total" style="font-variant-numeric:tabular-nums">¥0</b>
+      </p>
+    </section>
+
+    <!-- Step 3 -->
+    <section data-panel="3" hidden>
+      <h2>納期・備考</h2>
+      <label class="field" style="max-width:240px">
+        <span>納期<i class="req">*</i></span>
+        <input type="date" id="dueAt" data-testid="due-date">
+        <span class="hint">受注日より後の日付を指定してください</span>
+        <span class="err" id="err-due" hidden></span>
+      </label>
+      <label class="field">
+        <span>備考</span>
+        <textarea id="note" data-testid="note" placeholder="値引き条件、先方の要望など"></textarea>
+      </label>
+    </section>
+
+    <!-- Step 4 -->
+    <section data-panel="4" hidden>
+      <h2>内容の確認</h2>
+      <p class="hint" style="margin-top:-6px">この内容で申請します。承認者の承認後に確定します。</p>
+      <div id="review" data-testid="review"></div>
+    </section>
+
+    <div class="wizard-actions">
+      <button class="btn secondary" type="button" id="back" data-testid="wizard-back" disabled>戻る</button>
+      <span class="spacer"></span>
+      <button class="btn" type="button" id="next" data-testid="wizard-next">次へ</button>
+      <button class="btn" type="button" id="submit" data-testid="wizard-submit" hidden>この内容で申請する</button>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+import { boot, api, yen, modal, withBusy, toast, $, $$ } from '/assets/app.js';
+
+const user = await boot('/order-new');
+const meta = await api('/api/meta');
+const PRODUCTS = meta.products;
+
+let step = 1;
+const lines = [];
+
+$('#customer').innerHTML =
+  '<option value="">選択してください</option>' +
+  meta.customers.map((c) => `<option value="${c.id}">${c.name}</option>`).join('');
+$('#rep').placeholder = user.name;
+
+function renderLines() {
+  const tbody = $('#lines');
+  tbody.innerHTML = lines.length
+    ? lines.map((l, i) => `
+        <tr data-line="${i}">
+          <td class="id">${l.code}</td><td>${l.name}</td>
+          <td class="num">${l.qty}</td><td class="num">${yen(l.unitPrice)}</td>
+          <td class="num">${yen(l.qty * l.unitPrice)}</td>
+          <td><button class="btn secondary sm" type="button" data-remove="${i}">削除</button></td>
+        </tr>`).join('')
+    : '<tr><td colspan="6" class="empty" data-testid="no-lines">明細がありません。「明細を追加」から登録してください。</td></tr>';
+  $('[data-testid=line-total]').textContent = yen(lines.reduce((s, l) => s + l.qty * l.unitPrice, 0));
+}
+
+$('#lines').addEventListener('click', (e) => {
+  const i = e.target.closest('[data-remove]')?.dataset.remove;
+  if (i == null) return;
+  lines.splice(Number(i), 1);
+  renderLines();
+});
+
+// 明細追加: モーダル内の商品オートコンプリート
+$('#add-line').addEventListener('click', () => {
+  const body = document.createElement('div');
+  body.innerHTML = `
+    <label class="field ac">
+      <span>商品<i class="req">*</i></span>
+      <input type="text" data-testid="product-search" placeholder="商品名またはコードで検索" autocomplete="off">
+      <div class="ac-list" data-testid="product-options" hidden></div>
+      <span class="err" data-testid="product-error" hidden></span>
+    </label>
+    <label class="field" style="max-width:160px">
+      <span>数量<i class="req">*</i></span>
+      <input type="number" min="1" value="1" data-testid="qty">
+    </label>
+    <p class="hint" data-testid="picked">未選択</p>`;
+
+  let picked = null;
+  const input = body.querySelector('[data-testid=product-search]');
+  const list = body.querySelector('[data-testid=product-options]');
+
+  const render = () => {
+    const needle = input.value.trim().toLowerCase();
+    const hits = PRODUCTS.filter(
+      (p) => !needle || p.name.toLowerCase().includes(needle) || p.code.toLowerCase().includes(needle)
+    ).slice(0, 8);
+    list.innerHTML = hits
+      .map((p) => `<button type="button" data-code="${p.code}"><span class="code">${p.code}</span>${p.name}　${yen(p.price)}</button>`)
+      .join('');
+    list.hidden = hits.length === 0;
+  };
+  input.addEventListener('focus', render);
+  input.addEventListener('input', render);
+  list.addEventListener('click', (e) => {
+    const code = e.target.closest('[data-code]')?.dataset.code;
+    if (!code) return;
+    picked = PRODUCTS.find((p) => p.code === code);
+    input.value = `${picked.code} ${picked.name}`;
+    body.querySelector('[data-testid=picked]').textContent = `選択中: ${picked.name}（${yen(picked.price)}）`;
+    list.hidden = true;
+  });
+
+  modal({
+    title: '明細を追加',
+    body,
+    confirmLabel: '追加',
+    onConfirm: () => {
+      const err = body.querySelector('[data-testid=product-error]');
+      const qty = Number(body.querySelector('[data-testid=qty]').value);
+      if (!picked) {
+        err.textContent = '候補から商品を選択してください';
+        err.hidden = false;
+        return false;
+      }
+      if (!Number.isInteger(qty) || qty < 1) {
+        err.textContent = '数量は1以上の整数で入力してください';
+        err.hidden = false;
+        return false;
+      }
+      lines.push({ code: picked.code, name: picked.name, unitPrice: picked.price, qty });
+      renderLines();
+      toast(`${picked.name} を追加しました`, 'ok');
+      return true;
+    },
+  });
+});
+
+function validate(current) {
+  if (current === 1) {
+    const ok = !!$('#customer').value;
+    $('#err-customer').textContent = ok ? '' : '顧客を選択してください';
+    $('#err-customer').hidden = ok;
+    return ok;
+  }
+  if (current === 2) {
+    const ok = lines.length > 0;
+    $('#err-lines').textContent = ok ? '' : '明細を1行以上追加してください';
+    $('#err-lines').hidden = ok;
+    return ok;
+  }
+  if (current === 3) {
+    const v = $('#dueAt').value;
+    const ok = !!v && v > new Date().toISOString().slice(0, 10);
+    $('#err-due').textContent = ok ? '' : '納期は明日以降の日付を指定してください';
+    $('#err-due').hidden = ok;
+    return ok;
+  }
+  return true;
+}
+
+function show(n) {
+  step = n;
+  $$('[data-panel]').forEach((p) => (p.hidden = Number(p.dataset.panel) !== n));
+  $$('.steps .step').forEach((s) => {
+    const i = Number(s.dataset.step);
+    s.classList.toggle('active', i === n);
+    s.classList.toggle('done', i < n);
+  });
+  $('#back').disabled = n === 1;
+  $('#next').hidden = n === 4;
+  $('#submit').hidden = n !== 4;
+
+  if (n === 4) {
+    const total = lines.reduce((s, l) => s + l.qty * l.unitPrice, 0);
+    $('#review').innerHTML = `
+      <dl class="kv">
+        <dt>顧客</dt><dd>${$('#customer').selectedOptions[0].textContent}</dd>
+        <dt>営業担当</dt><dd>${$('#rep').value.trim() || user.name}</dd>
+        <dt>納期</dt><dd>${$('#dueAt').value}</dd>
+        <dt>明細</dt><dd>${lines.map((l) => `${l.name} × ${l.qty}`).join('<br>')}</dd>
+        <dt>合計金額</dt><dd><b style="font-size:16px">${yen(total)}</b></dd>
+        <dt>備考</dt><dd>${$('#note').value.trim() || '—'}</dd>
+      </dl>`;
+  }
+}
+
+$('#next').addEventListener('click', () => { if (validate(step)) show(step + 1); });
+$('#back').addEventListener('click', () => show(step - 1));
+
+$('#submit').addEventListener('click', (e) =>
+  withBusy(e.currentTarget, '申請中…', async () => {
+    try {
+      const { order } = await api('/api/orders', {
+        method: 'POST',
+        body: {
+          customerId: $('#customer').value,
+          rep: $('#rep').value.trim() || undefined,
+          dueAt: $('#dueAt').value,
+          note: $('#note').value.trim(),
+          lines: lines.map((l) => ({ code: l.code, qty: l.qty })),
+        },
+      });
+      toast(`受注 ${order.id} を申請しました`, 'ok');
+      setTimeout(() => { location.href = `/orders?q=${encodeURIComponent(order.id)}`; }, 900);
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  })
+);
+
+show(1);
+renderLines();
+</script>
+</body>
+</html>
