@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.DS_Store
+~$*
+CLAUDE.local.md
+.claude/settings.local.json
+
+# 演習の成果物はコミットしない（自分の手で作るもの）
+units/*/output/*
+!units/*/output/.gitkeep
+
+# 単元03は data/ 配下を実際に動かすため、バックアップは無視する
+units/03-file-organization/data/受信箱_backup/

@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>承認 | Altair 受注管理（RPA練習用）</title>
+<link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+<main class="page">
+  <h1>承認待ち</h1>
+  <p class="crumb">ホーム / 承認</p>
+
+  <div class="notice" id="no-role" hidden data-testid="no-approver-notice">
+    このアカウントには承認権限がありません。承認するには承認者アカウントでログインしてください。
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <h2>申請中の受注</h2>
+      <span class="spacer"></span>
+      <span class="count" id="count" data-testid="pending-count" style="color:var(--muted);font-size:13px">読み込み中…</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>受注番号</th><th>顧客名</th><th>担当者</th><th style="text-align:right">金額</th><th>受注日</th><th>納期</th><th></th></tr>
+        </thead>
+        <tbody id="rows" data-testid="approval-rows">
+          <tr><td colspan="7" class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pager">
+      <span class="spacer"></span>
+      <button type="button" id="prev" data-testid="page-prev" disabled>&larr; 前へ</button>
+      <span class="cur" data-testid="page-indicator">- / -</span>
+      <button type="button" id="next" data-testid="page-next" disabled>次へ &rarr;</button>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+import { boot, api, yen, modal, withBusy, toast, $ } from '/assets/app.js';
+
+const user = await boot('/approvals');
+const canApprove = user.roles.includes('approver');
+if (!canApprove) $('#no-role').hidden = false;
+
+let page = 1;
+
+async function load() {
+  $('#rows').innerHTML =
+    '<tr><td colspan="7" class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></td></tr>';
+  const data = await api(`/api/orders?status=${encodeURIComponent('申請中')}&page=${page}&sort=amount`);
+  page = data.page;
+
+  $('#rows').innerHTML = data.rows.length
+    ? data.rows.map((o) => `
+        <tr data-order-id="${o.id}">
+          <td class="id">${o.id}</td>
+          <td>${o.customer}</td>
+          <td>${o.rep}</td>
+          <td class="num">${yen(o.amount)}</td>
+          <td class="id">${o.orderedAt}</td>
+          <td class="id">${o.dueAt}</td>
+          <td style="white-space:nowrap">
+            <button class="btn sm" type="button" data-approve="${o.id}" ${canApprove ? '' : 'disabled'}>承認</button>
+            <button class="btn secondary sm" type="button" data-reject="${o.id}" ${canApprove ? '' : 'disabled'}>差戻し</button>
+          </td>
+        </tr>`).join('')
+    : '<tr><td colspan="7" class="empty" data-testid="no-pending">承認待ちの受注はありません</td></tr>';
+
+  $('#count').textContent = `${data.total} 件`;
+  $('[data-testid=page-indicator]').textContent = `${data.page} / ${data.totalPages}`;
+  $('#prev').disabled = data.page <= 1;
+  $('#next').disabled = data.page >= data.totalPages;
+}
+
+async function detailBody(id) {
+  const { order } = await api('/api/orders?id=' + encodeURIComponent(id));
+  const body = document.createElement('div');
+  body.innerHTML = `
+    <dl class="kv">
+      <dt>受注番号</dt><dd>${order.id}</dd>
+      <dt>顧客</dt><dd>${order.customer}</dd>
+      <dt>金額</dt><dd><b>${yen(order.amount)}</b></dd>
+      <dt>明細</dt><dd>${order.lines.map((l) => `${l.name} × ${l.qty}`).join('<br>')}</dd>
+    </dl>`;
+  return { body, order };
+}
+
+$('#rows').addEventListener('click', async (e) => {
+  const approveId = e.target.closest('[data-approve]')?.dataset.approve;
+  const rejectId = e.target.closest('[data-reject]')?.dataset.reject;
+  const id = approveId || rejectId;
+  if (!id) return;
+
+  const { body } = await detailBody(id);
+
+  if (approveId) {
+    const p = document.createElement('p');
+    p.style.margin = '16px 0 0';
+    p.textContent = 'この受注を承認します。承認後は取り消せません。';
+    body.appendChild(p);
+    modal({
+      title: `受注を承認 — ${id}`,
+      body,
+      confirmLabel: '承認する',
+      onConfirm: async (wrap, btn) =>
+        withBusy(btn, '処理中…', async () => {
+          try {
+            await api('/api/orders', { method: 'PATCH', body: { id, decision: 'approve' } });
+            toast(`${id} を承認しました`, 'ok');
+            await load();
+            return true;
+          } catch (err) {
+            toast(err.message, 'error');
+            return false;
+          }
+        }),
+    });
+    return;
+  }
+
+  const wrapField = document.createElement('label');
+  wrapField.className = 'field';
+  wrapField.style.marginTop = '16px';
+  wrapField.innerHTML = `
+    <span>差戻しの理由<i class="req">*</i></span>
+    <textarea data-testid="reject-reason" placeholder="10文字以上で入力してください"></textarea>
+    <span class="hint">申請者に通知されます。何を直せばよいかが分かるように書いてください。</span>
+    <span class="err" data-testid="reject-error" hidden></span>`;
+  body.appendChild(wrapField);
+
+  modal({
+    title: `受注を差戻し — ${id}`,
+    body,
+    confirmLabel: '差戻す',
+    confirmClass: 'btn danger',
+    onConfirm: async (wrap, btn) => {
+      const reason = wrap.querySelector('[data-testid=reject-reason]').value.trim();
+      const err = wrap.querySelector('[data-testid=reject-error]');
+      if (reason.length < 10) {
+        err.textContent = '理由は10文字以上で入力してください';
+        err.hidden = false;
+        return false;
+      }
+      return withBusy(btn, '処理中…', async () => {
+        try {
+          await api('/api/orders', { method: 'PATCH', body: { id, decision: 'reject', reason } });
+          toast(`${id} を差戻しました`, 'ok');
+          await load();
+          return true;
+        } catch (e2) {
+          toast(e2.message, 'error');
+          return false;
+        }
+      });
+    },
+  });
+});
+
+$('#prev').addEventListener('click', () => { page--; load(); });
+$('#next').addEventListener('click', () => { page++; load(); });
+
+await load();
+</script>
+</body>
+</html>

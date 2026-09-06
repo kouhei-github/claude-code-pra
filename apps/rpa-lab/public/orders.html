@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>受注一覧 | Altair 受注管理（RPA練習用）</title>
+<link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+<main class="page">
+  <h1>受注一覧</h1>
+  <p class="crumb">ホーム / 受注一覧</p>
+
+  <div class="panel">
+    <div class="toolbar">
+      <label class="field">
+        <span>検索（受注番号 / 顧客名 / 担当者）</span>
+        <input type="text" id="q" placeholder="ミナト" data-testid="search" autocomplete="off">
+      </label>
+      <label class="field" style="min-width:150px">
+        <span>ステータス</span>
+        <select id="status" data-testid="filter-status">
+          <option value="">すべて</option>
+          <option>下書き</option><option>申請中</option><option>承認済</option>
+          <option>差戻し</option><option>出荷済</option>
+        </select>
+      </label>
+      <label class="field" style="min-width:150px">
+        <span>並び順</span>
+        <select id="sort" data-testid="filter-sort">
+          <option value="orderedAt">受注日（新しい順）</option>
+          <option value="amount">金額（大きい順）</option>
+          <option value="id">受注番号</option>
+        </select>
+      </label>
+      <button class="btn secondary" type="button" id="clear" data-testid="clear-filters">条件クリア</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>受注番号</th><th>顧客名</th><th>担当者</th>
+            <th style="text-align:right">金額</th><th>受注日</th><th>納期</th>
+            <th>ステータス</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="rows" data-testid="order-rows">
+          <tr><td colspan="8" class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pager">
+      <span class="count" data-testid="result-count">読み込み中…</span>
+      <span class="spacer"></span>
+      <button type="button" id="prev" data-testid="page-prev" disabled>&larr; 前へ</button>
+      <span class="cur" data-testid="page-indicator">- / -</span>
+      <button type="button" id="next" data-testid="page-next" disabled>次へ &rarr;</button>
+    </div>
+  </div>
+</main>
+
+<script type="module">
+import { boot, api, yen, badge, modal, debounce, $ } from '/assets/app.js';
+
+await boot('/orders');
+
+const state = { q: '', status: '', sort: 'orderedAt', page: 1, totalPages: 1 };
+const rows = $('#rows');
+
+function skeleton() {
+  rows.innerHTML =
+    '<tr><td colspan="8" class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></td></tr>';
+  $('[data-testid=result-count]').textContent = '読み込み中…';
+}
+
+async function load() {
+  skeleton();
+  const params = new URLSearchParams({
+    q: state.q, status: state.status, sort: state.sort, page: String(state.page),
+  });
+  const data = await api('/api/orders?' + params);
+  state.page = data.page;
+  state.totalPages = data.totalPages;
+
+  rows.innerHTML = data.rows.length
+    ? data.rows.map((o) => `
+        <tr data-order-id="${o.id}">
+          <td class="id">${o.id}</td>
+          <td>${o.customer}</td>
+          <td>${o.rep}</td>
+          <td class="num">${yen(o.amount)}</td>
+          <td class="id">${o.orderedAt}</td>
+          <td class="id">${o.dueAt}</td>
+          <td>${badge(o.status)}</td>
+          <td><button class="btn secondary sm" type="button" data-detail="${o.id}">詳細</button></td>
+        </tr>`).join('')
+    : '<tr><td colspan="8" class="empty" data-testid="no-results">条件に一致する受注はありません</td></tr>';
+
+  $('[data-testid=result-count]').textContent =
+    `${data.total} 件中 ${data.total === 0 ? 0 : (data.page - 1) * data.perPage + 1}〜${Math.min(data.page * data.perPage, data.total)} 件を表示`;
+  $('[data-testid=page-indicator]').textContent = `${data.page} / ${data.totalPages}`;
+  $('#prev').disabled = data.page <= 1;
+  $('#next').disabled = data.page >= data.totalPages;
+}
+
+rows.addEventListener('click', async (e) => {
+  const id = e.target.closest('[data-detail]')?.dataset.detail;
+  if (!id) return;
+  const { order } = await api('/api/orders?id=' + encodeURIComponent(id));
+  const body = document.createElement('div');
+  body.innerHTML = `
+    <dl class="kv" data-testid="order-detail">
+      <dt>受注番号</dt><dd>${order.id}</dd>
+      <dt>顧客</dt><dd>${order.customer}</dd>
+      <dt>担当者</dt><dd>${order.rep}</dd>
+      <dt>受注日 / 納期</dt><dd>${order.orderedAt} / ${order.dueAt}</dd>
+      <dt>ステータス</dt><dd>${badge(order.status)}</dd>
+      <dt>金額</dt><dd><b>${yen(order.amount)}</b></dd>
+    </dl>
+    <h2 style="margin:20px 0 8px;font-size:13.5px">明細</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>商品コード</th><th>商品名</th><th style="text-align:right">数量</th><th style="text-align:right">単価</th><th style="text-align:right">金額</th></tr></thead>
+      <tbody>${order.lines.map((l) => `<tr><td class="id">${l.code}</td><td>${l.name}</td><td class="num">${l.qty}</td><td class="num">${yen(l.unitPrice)}</td><td class="num">${yen(l.amount)}</td></tr>`).join('')}</tbody>
+    </table></div>
+    ${order.note ? `<p style="margin:16px 0 0"><b style="font-size:12.5px;color:var(--muted)">備考</b><br>${order.note}</p>` : ''}`;
+  modal({ title: `受注詳細 ${order.id}`, body, confirmLabel: '閉じる', onConfirm: () => true });
+});
+
+$('#q').addEventListener('input', debounce((e) => { state.q = e.target.value; state.page = 1; load(); }, 350));
+$('#status').addEventListener('change', (e) => { state.status = e.target.value; state.page = 1; load(); });
+$('#sort').addEventListener('change', (e) => { state.sort = e.target.value; state.page = 1; load(); });
+$('#clear').addEventListener('click', () => {
+  $('#q').value = ''; $('#status').value = ''; $('#sort').value = 'orderedAt';
+  Object.assign(state, { q: '', status: '', sort: 'orderedAt', page: 1 });
+  load();
+});
+$('#prev').addEventListener('click', () => { state.page--; load(); });
+$('#next').addEventListener('click', () => { state.page++; load(); });
+
+// URL から初期条件を復元（?status=申請中 のようなディープリンクを許す）
+const sp = new URLSearchParams(location.search);
+if (sp.get('status')) { state.status = sp.get('status'); $('#status').value = state.status; }
+if (sp.get('q')) { state.q = sp.get('q'); $('#q').value = state.q; }
+
+await load();
+</script>
+</body>
+</html>
